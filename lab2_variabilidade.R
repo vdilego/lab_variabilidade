@@ -21,8 +21,8 @@
 ##  Threshold: github.com/jmaburto/The-treshold-age-of-the-lifetable-Entropy
 ## ============================================================
 
-source("R/00_setup.R")
-source("R/funcoes_aux.R")
+source("/cloud/project/00_setup.R")
+source("/cloud/project/funcoes_aux.R")
 
 ## ============================================================
 ## PARTE 0 — Preparar tábuas de vida
@@ -124,26 +124,25 @@ calcular_lifeineq <- function(lt, nome) {
     e0        = lt$ex[1],
     ## Medidas absolutas (em anos)
     SD        = LifeIneq::ineq_sd(age = lt$age, dx = lt$dx,
-                                   ex = lt$ex, ax = lt$ax,
-                                   distribution = FALSE),
+                                   ex = lt$ex, ax = lt$ax),
     IQR       = iqr_lt(lt),   # não está no LifeIneq — usamos a nossa
     e_dagger  = LifeIneq::ineq_edag(age = lt$age, dx = lt$dx,
                                      lx = lt$lx, ex = lt$ex,
                                      ax = lt$ax),
     ## Medidas relativas (adimensionais)
-    Gini      = LifeIneq::ineq_gini(age = lt$age, dx = lt$dx,
+    Gini      = LifeIneq::ineq_gini(age = lt$age,
                                      lx = lt$lx, ex = lt$ex,
                                      ax = lt$ax),
     H_Keyfitz = LifeIneq::ineq_H(age = lt$age, dx = lt$dx,
                                    lx = lt$lx, ex = lt$ex,
                                    ax = lt$ax),
     Theil     = LifeIneq::ineq_theil(age = lt$age, dx = lt$dx,
-                                      ex = lt$ex, ax = lt$ax,
-                                      distribution = FALSE),
+                                      ex = lt$ex, ax = lt$ax),
     ## Threshold age — da nossa função (baseada em Aburto et al. 2019)
     a_star    = threshold_age(lt)
   )
 }
+
 
 tab_ineq <- map2_dfr(pop_lista, names(pop_lista), calcular_lifeineq)
 
