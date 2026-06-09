@@ -213,14 +213,13 @@ gini_lt <- function(lt) {
 #   Permanyer, Spijker, Blanes & Renteria (2018), Demography.
 #   Permanyer, Sasson & Villavicencio (2023), JRSSA 186(2).
 theil_lt <- function(lt, age_min = 0) {
-  sub  <- subset(lt, age >= age_min)
-  e0   <- lt$ex[1]  # usa e0 global como referência
-  mid  <- pmax(sub$age + sub$ax, 0.01)
+  sub  <- subset(lt, age >= age_min & dx > 0)
   px   <- sub$dx / sum(sub$dx)
-  r    <- mid / e0
+  mid  <- sub$age + sub$ax
+  mu   <- sum(mid * px)          # média do subconjunto, não e0 global
+  r    <- mid / mu
   sum(r * log(r) * px, na.rm = TRUE)
 }
-
 ## ── Threshold age a* ─────────────────────────────────────────
 
 # Threshold age: a* tal que e(a*) = e0

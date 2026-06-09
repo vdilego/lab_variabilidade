@@ -458,6 +458,7 @@ print(tab_theil)
 ## Seguindo a estrutura de Permanyer et al. (2018):
 ## T_total = T_entre + soma(w_k * T_k)
 
+
 theil_decomp <- function(lt, breaks = c(0, 15, 50, Inf),
                          labels = c("0-14", "15-49", "50+")) {
   e0 <- lt$ex[1]
@@ -494,23 +495,25 @@ theil_decomp <- function(lt, breaks = c(0, 15, 50, Inf),
   )
 }
 
-cat("\n── Decomposição do Theil — Suécia 2019 ──\n")
-dec_swe <- theil_decomp(lt_swe2019)
-cat(sprintf("  T total  = %.4f\n", dec_swe$T_total))
-cat(sprintf("  T entre  = %.4f (%.1f%%)\n",
-            dec_swe$T_entre, dec_swe$pct_entre))
-cat(sprintf("  T dentro = %.4f (%.1f%%)\n",
-            dec_swe$T_dentro, dec_swe$pct_dentro))
-print(dec_swe$grupos |>
-        mutate(across(where(is.numeric), ~round(.x, 4))))
+dec_swe <- theil_decomp(lt_swe2019,
+                        breaks = c(15, 50, Inf),
+                        labels = c("15-49", "50+"))
+
+dec_usa <- theil_decomp(lt_usa2019,
+                        breaks = c(15, 50, Inf),
+                        labels = c("15-49", "50+"))
 
 cat("\n── Decomposição do Theil — EUA 2019 ──\n")
-dec_usa <- theil_decomp(lt_usa2019)
+dec_usa <- theil_decomp(lt_usa2019,
+                        breaks = c(15, 50, Inf),
+                        labels = c("15-49", "50+"))
 cat(sprintf("  T total  = %.4f\n", dec_usa$T_total))
 cat(sprintf("  T entre  = %.4f (%.1f%%)\n",
             dec_usa$T_entre, dec_usa$pct_entre))
 cat(sprintf("  T dentro = %.4f (%.1f%%)\n",
             dec_usa$T_dentro, dec_usa$pct_dentro))
+print(dec_usa$grupos |>
+        mutate(across(where(is.numeric), ~round(.x, 4))))
 
 ## 7.3  Gráfico: contribuição dos grupos para o Theil
 grupos_plot <- bind_rows(
@@ -537,6 +540,32 @@ fig11 <- grupos_plot |>
 
 ggsave("figs/fig11_theil_decomp.pdf", fig11, width = 8, height = 5)
 print(fig11)
+
+
+
+#1. Nível total de desigualdade
+#Os EUA têm desigualdade de longevidade 78% maior que a Suécia (0.0238 vs 0.0134).
+#Isso confirma o que o Gini e o SD já mostravam, mas o Theil permite agora decompor de onde vem essa diferença.
+
+#2. Componente entre grupos (T_entre)
+#Suécia: 44.4% da desigualdade vem da diferença entre quem morre entre 15–49 anos
+#(média = 38.2 anos) e quem morre após 50 (média = 85.7 anos). Essa diferença de ~47 anos entre as médias dos grupos gera desigualdade.
+#EUA: 57.7% — uma proporção muito maior da desigualdade americana vem dessa separação entre mortes prematuras adultas e mortes tardias. O grupo 15–49 representa 3.65% das mortes nos EUA vs. 1.58% na Suécia — quase o dobro. Mortes por violência, overdose e acidentes nos EUA inflam esse grupo e aumentam a distância entre os dois grupos.
+#Mensagem: a maior desigualdade americana é parcialmente explicada por ter mais mortes prematuras adultas que criam uma separação maior entre fases do ciclo de vida.
+
+#3. Componente dentro dos grupos (T_dentro)
+#Grupo 15–49: T_k = 0.0335 (SWE) e 0.0285 (EUA) — curiosamente, a variabilidade interna entre 15 e 49 anos é maior na Suécia do que nos EUA. Isso porque nos EUA as mortes nesse grupo estão mais concentradas em causas específicas (overdose, violência) em idades mais jovens, enquanto na Suécia as poucas mortes nessa faixa estão mais dispersas ao longo das idades 15–49.
+#Grupo 50+: T_k = 0.0071 (SWE) e 0.0095 (EUA) — a variabilidade interna entre os que morrem após os 50 é maior nos EUA. Isso reflete a maior desigualdade socioeconômica americana: enquanto na Suécia as mortes acima de 50 estão relativamente comprimidas em torno da moda (~90 anos), nos EUA há maior dispersão — alguns morrem aos 55, outros aos 95.
+
+
+#conclusao:
+
+#O contraste entre os dois países ilustra dois mecanismos distintos de desigualdade de longevidade:
+  
+#  EUA: desigualdade predominantemente entre grupos (58%) — há uma separação clara entre quem morre jovem e quem morre velho, associada a causas externas, desigualdade socioeconômica e crise de opioides. Políticas que reduzam mortalidade prematura adulta (15–49) teriam impacto desproporcional.
+#Suécia: desigualdade predominantemente dentro dos grupos (56%) — mesmo entre os que sobrevivem até 50+, há variação substancial. A desigualdade é mais difusa e menos associada a mortes prematuras evitáveis. Intervenções precisariam ser mais abrangentes ao longo do ciclo de vida.
+
+#Esse é exatamente o argumento de Permanyer, Sasson & Villavicencio (2023, JRSSA) aplicado a diferenças raciais nos EUA — a decomposição revela que a desigualdade entre grupos raciais vem principalmente do componente entre, enquanto a desigualdade dentro de cada grupo racial é estruturalmente similar.
 
 ## ============================================================
 ## PARTE 8 — Curva de Lorenz da tábua de vida
@@ -599,12 +628,39 @@ fig12 <- ggplot(lor_todas, aes(F_mortes, L_anos,
 ggsave("figs/fig12_lorenz.pdf", fig12, width = 7, height = 7)
 print(fig12)
 
+#Como interpretar
+#O que está no gráfico:
+  
+#  Eixo x: proporção acumulada de mortes, ordenadas da idade mais jovem para a mais velha — ou seja, da esquerda para a direita estamos "adicionando" pessoas que morreram mais cedo até as que morreram mais tarde
+#Eixo y: proporção acumulada dos anos vividos por essas pessoas
+#Diagonal tracejada: igualdade perfeita — todo mundo morre na mesma idade (zero variabilidade)
+
+
+#por exemplo o ponto (0.10, 0.04) na curva da USA 1960:
+  
+#  "Os 10% que morreram mais cedo viveram apenas 4% do total de anos vividos pela coorte"
+
+#Quanto mais a curva se afasta da diagonal para baixo, maior a desigualdade —
+#as mortes precoces concentram uma proporção pequena dos anos vividos.
+
+#Por que a curva fica abaixo da diagonal
+#Porque quem morre cedo vive menos anos do que a média. Se todos morressem na mesma idade, 
+#cada 10% das mortes acumularia exatamente 10% dos anos vividos — a curva coincidiria com a diagonal. Na prática há mortes prematuras que "pesam menos" em anos vividos, deslocando a curva para baixo.
+
+
+#G não mede quanto se vive, mas quão desigualmente se distribui o risco de morrer. Dois países podem ter o mesmo e0e_0
+#e0. e Gini muito diferentes — como SWE 2019 ( e0 = 84.7, G = 0.074) e 
+#USA 2019 (e0= 81.5, G = 0.097). Nos EUA, mesmo com e0 menor, a desigualdade de 
+#longevidade é ainda maior: há tanto mortes muito prematuras quanto mortes muito tardias, enquanto na Suécia as mortes estão mais concentradas em torno da moda (~90 anos).
+#Esse é o argumento central de van Raalte, Sasson & Martikainen (2018, Science): 
+#a desigualdade de longevidade é uma dimensão independente do nível médio de vida — e a curva de Lorenz da tábua de vida é sua representação visual mais direta.
+
 ## ============================================================
-## PARTE 9 — Exercício final integrador
+## PARTE 9 — Exercício 
 ## ============================================================
 cat("\n")
 cat("═══════════════════════════════════════════════════════\n")
-cat("EXERCÍCIO FINAL — Responda com base nos resultados acima\n")
+cat("EXERCÍCIO — Responda com base nos resultados acima\n")
 cat("═══════════════════════════════════════════════════════\n")
 cat("\n")
 cat("1. Para a Suécia 2019, uma redução de 5% em todas as taxas\n")
@@ -629,6 +685,4 @@ tab_ineq |>
   select(Populacao, Gini, Theil, e_dagger) |>
   mutate(across(where(is.numeric), ~round(.x, 4))) |>
   print()
-
-cat("\n✓ Lab 2 concluído. Todas as figuras salvas em figs/\n")
 
