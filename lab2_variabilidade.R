@@ -459,33 +459,38 @@ print(tab_theil)
 ## T_total = T_entre + soma(w_k * T_k)
 
 theil_decomp <- function(lt, breaks = c(0, 15, 50, Inf),
-                          labels = c("0-14", "15-49", "50+")) {
+                         labels = c("0-14", "15-49", "50+")) {
   e0 <- lt$ex[1]
+  
   lt_g <- lt |>
     mutate(grupo = cut(age, breaks = breaks,
                        labels = labels, right = FALSE))
-
-  res <- lt_g |>
-    group_by(grupo) |>
-    summarise(
-      s_k    = sum(dx) / sum(lt$dx),           # fração de mortes
-      e_k    = weighted.mean(age + ax, dx),    # e0 do grupo
-      T_k    = theil_lt(cur_data(), 0),        # Theil interno
-      .groups = "drop"
-    )
-
-  T_entre  <- sum(res$s_k * (res$e_k / e0) * log(res$e_k / e0),
-                  na.rm = TRUE)
+  
+  ## Calcular por grupo sem usar cur_data()
+  grupos_lista <- lapply(labels, function(g) {
+    sub <- lt_g |> filter(grupo == g)
+    if (nrow(sub) == 0 || sum(sub$dx) == 0) return(NULL)
+    
+    s_k   <- sum(sub$dx) / sum(lt$dx)
+    e_k   <- sum((sub$age + sub$ax) * sub$dx) / sum(sub$dx)
+    T_k   <- theil_lt(sub, 0)
+    
+    tibble(grupo = g, s_k = s_k, e_k = e_k, T_k = T_k)
+  })
+  
+  res <- bind_rows(grupos_lista)
+  
+  T_entre  <- sum(res$s_k * (res$e_k / e0) * log(res$e_k / e0), na.rm = TRUE)
   T_dentro <- sum(res$s_k * res$T_k, na.rm = TRUE)
   T_total  <- T_entre + T_dentro
-
+  
   list(
-    grupos   = res,
-    T_entre  = T_entre,
-    T_dentro = T_dentro,
-    T_total  = T_total,
-    pct_entre = 100 * T_entre  / T_total,
-    pct_dentro= 100 * T_dentro / T_total
+    grupos    = res,
+    T_entre   = T_entre,
+    T_dentro  = T_dentro,
+    T_total   = T_total,
+    pct_entre  = 100 * T_entre  / T_total,
+    pct_dentro = 100 * T_dentro / T_total
   )
 }
 
@@ -538,10 +543,23 @@ print(fig11)
 ## ============================================================
 
 lorenz_lt <- function(lt, nome) {
+  lt <- lt |> arrange(age)
+  
+  ## A curva de Lorenz ordena os indivíduos do menor para o maior tempo vivido
+  ## Quem morre na idade x viveu Lx/dx anos em média = ex + ax ≈ age + ax
+  ## Ordenar por idade crescente = ordenar por tempo vivido crescente ✓
+  
+  ## Eixo x: proporção acumulada de PESSOAS (mortes), idade crescente
+  F_mortes <- c(0, cumsum(lt$dx) / sum(lt$dx))
+  
+  ## Eixo y: proporção acumulada de ANOS VIVIDOS (dx * (age + ax)), idade crescente  
+  anos_vividos <- lt$dx * (lt$age + lt$ax)
+  L_anos <- c(0, cumsum(anos_vividos) / sum(anos_vividos))
+  
   tibble(
-    Populacao  = nome,
-    F_mortes   = c(0, cumsum(lt$dx) / sum(lt$dx)),
-    L_anos     = c(0, cumsum(lt$Lx) / sum(lt$Lx))
+    Populacao = nome,
+    F_mortes  = F_mortes,
+    L_anos    = L_anos
   )
 }
 
