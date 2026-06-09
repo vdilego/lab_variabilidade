@@ -91,22 +91,42 @@ fig5 <- lt_swe2019 |>
   scale_fill_manual(
     values = c("Abaixo de a*" = "#c00000",
                "Acima de a*"  = "#1f497d")) +
-  labs(
-    title    = expression(
-      bold("Contribuição de cada idade para ") * e^"\u2020"),
-    subtitle = expression("Área total = " * e^"\u2020" *
-      " (anos de vida esperados perdidos em média)"),
+  labs(title = expression(bold("Contribuição de cada idade para") ~ e^"†"),
+    subtitle = expression("Área total =" ~ e^"†" ~ "(anos de vida perdidos em média)"),
     x = "Idade", y = expression(e(x) %.% d(x) / ell[0]),
     fill = NULL,
     caption = paste0(
       "Suécia 2019, mulheres. ",
-      "e† = ", round(edagger_lt(lt_swe2019), 2), " anos. ",
-      "Fonte: Vaupel, Zhang & van Raalte (2011).")
-  ) +
+      "e-dagger = ", round(edagger_lt(lt_swe2019), 2), " anos. ",
+      "Fonte: Vaupel, Zhang & van Raalte (2011).")) +
   scale_x_continuous(breaks = seq(0, 110, 10))
 
-ggsave("figs/fig5_contrib_edagger.pdf", fig5, width = 10, height = 5)
+ggsave("figs/fig5_contrib_edagger.png", fig5, width = 10, height = 5, dpi = 300)
 print(fig5)
+
+
+#A condição certa vem de Zhang & Vaupel (2009): a†a^\dagger
+#a† é onde a esperança de vida residual e(x)e(x)
+#e(x) iguala e†e^\dagger
+#e† (os anos perdidos em média). Como e†≈9e^\dagger \approx 9
+#e†≈9 anos para SWE 2019 e exex
+#ex decresce de 84 até 0, o cruzamento existe e está em torno dos 80 anos — 
+#interpretável como "a partir dessa idade, reduzir a mortalidade aumenta a desigualdade de vida"
+
+#e† = 8.99 anos
+
+#age 81: ex = 9.52  → ainda ACIMA de e†
+#age 82: ex = 8.86  → já ABAIXO de e†
+─────────────────────────────────────
+#a† ≈ 81.8  
+#E faz sentido demograficamente para a Suécia 2019:
+#Vaupel, Zhang & van Raalte (2011) observam que a†a^\dagger
+#a† tende a ficar ligeiramente abaixo de e0e_0
+#e0 em populações modernas — exatamente o que vemos aqui (~3 anos abaixo). 
+#A intuição: e†≈9e^\dagger \approx 9
+#e†≈9 anos é um valor pequeno (baixa desigualdade em SWE 2019), então o c
+# ruzamento ex(x) = 9 só ocorre em idades muito avançadas, 
+# onde a esperança de vida residual já caiu bastante. 
 
 ## ============================================================
 ## PARTE 2 — Usando o pacote LifeIneq
@@ -116,33 +136,25 @@ print(fig5)
 
 ## 2.1  Calcular todas as medidas com LifeIneq
 calcular_lifeineq <- function(lt, nome) {
-  ## LifeIneq espera: age, dx, lx, ex, ax
-  lt_in <- lt |> select(age, dx, lx, ex, ax)
-
   tibble(
     Populacao = nome,
     e0        = lt$ex[1],
-    ## Medidas absolutas (em anos)
     SD        = LifeIneq::ineq_sd(age = lt$age, dx = lt$dx,
-                                   ex = lt$ex, ax = lt$ax),
-    IQR       = iqr_lt(lt),   # não está no LifeIneq — usamos a nossa
+                                  ex = lt$ex, ax = lt$ax),
+    IQR       = iqr_lt(lt),
     e_dagger  = LifeIneq::ineq_edag(age = lt$age, dx = lt$dx,
-                                     lx = lt$lx, ex = lt$ex,
-                                     ax = lt$ax),
-    ## Medidas relativas (adimensionais)
-    Gini      = LifeIneq::ineq_gini(age = lt$age,
-                                     lx = lt$lx, ex = lt$ex,
-                                     ax = lt$ax),
+                                    lx = lt$lx, ex = lt$ex,
+                                    ax = lt$ax),
+    Gini      = LifeIneq::ineq_gini(age = lt$age, dx = lt$dx,
+                                    ex = lt$ex, ax = lt$ax),
     H_Keyfitz = LifeIneq::ineq_H(age = lt$age, dx = lt$dx,
-                                   lx = lt$lx, ex = lt$ex,
-                                   ax = lt$ax),
+                                 lx = lt$lx, ex = lt$ex,
+                                 ax = lt$ax),
     Theil     = LifeIneq::ineq_theil(age = lt$age, dx = lt$dx,
-                                      ex = lt$ex, ax = lt$ax),
-    ## Threshold age — da nossa função (baseada em Aburto et al. 2019)
+                                     ex = lt$ex, ax = lt$ax),
     a_star    = threshold_age(lt)
   )
 }
-
 
 tab_ineq <- map2_dfr(pop_lista, names(pop_lista), calcular_lifeineq)
 
@@ -150,35 +162,51 @@ cat("\n── Tabela completa de indicadores (LifeIneq + auxiliares) ──\n")
 print(tab_ineq |> mutate(across(where(is.numeric), ~round(.x, 3))))
 
 ## ============================================================
-## PARTE 3 — Gráfico de teia: comparação de medidas
+## PARTE 3 — Tabela comparativa
 ## ============================================================
 
-fig6 <- tab_ineq |>
-  select(Populacao, SD, IQR, e_dagger, Gini, H_Keyfitz, Theil) |>
-  pivot_longer(-Populacao, names_to = "Medida", values_to = "Valor") |>
-  ## Normalizar para comparação visual
-  group_by(Medida) |>
-  mutate(Valor_norm = (Valor - min(Valor)) /
-           (max(Valor) - min(Valor) + 1e-9)) |>
-  ungroup() |>
-  ggplot(aes(Medida, Valor_norm,
-             color = Populacao, group = Populacao)) +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 2.5) +
-  scale_color_manual(values = c(
-    SWE_1960 = "#1f497d", SWE_2019 = "#70b0d0",
-    USA_1960 = "#c00000", USA_2019 = "#f08080")) +
-  labs(
-    title    = "Medidas de variabilidade normalizadas",
-    subtitle = "0 = mínimo entre populações; 1 = máximo",
-    x = NULL, y = "Valor normalizado [0,1]",
-    color = NULL,
-    caption = "Medidas calculadas com LifeIneq + funções auxiliares."
-  ) +
-  theme(axis.text.x = element_text(angle = 20, hjust = 1))
 
-ggsave("figs/fig6_medidas_comparadas.pdf", fig6, width = 9, height = 5)
-print(fig6)
+tab_ineq |>
+  select(Populacao, e0, SD, IQR, e_dagger, Gini, H_Keyfitz, Theil) |>
+  mutate(
+    Pais = recode(str_extract(Populacao, "^[A-Z]+"),
+                  SWE = "Suécia", USA = "EUA"),
+    Ano  = str_extract(Populacao, "[0-9]+")
+  ) |>
+  select(Pais, Ano, e0, SD, IQR, e_dagger, Gini, H_Keyfitz, Theil) |>
+  gt(rowname_col = "Ano", groupname_col = "Pais") |>
+  tab_header(
+    title    = "Medidas de variabilidade das idades à morte",
+    subtitle = "Mulheres — Suécia e EUA, 1960 e 2019"
+  ) |>
+  fmt_number(columns = c(e0, SD, IQR, e_dagger), decimals = 2) |>
+  fmt_number(columns = c(Gini, H_Keyfitz, Theil),  decimals = 4) |>
+  cols_label(
+    e0        = html("e<sub>0</sub>"),
+    e_dagger  = html("e<sup>†</sup>"),
+    H_Keyfitz = html("H̄ (Keyfitz)")
+  ) |>
+  tab_spanner(
+    label   = "Medidas absolutas (anos)",
+    columns = c(e0, SD, IQR, e_dagger)
+  ) |>
+  tab_spanner(
+    label   = "Medidas relativas (adimensional)",
+    columns = c(Gini, H_Keyfitz, Theil)
+  ) |>
+  tab_source_note(
+    "Calculadas com LifeIneq (van Raalte & Riffe) + funções auxiliares. Dados: HMD."
+  ) |>
+  ## Destacar menor desigualdade (SWE 2019) em azul claro
+  tab_style(
+    style = cell_fill(color = "#dce9f5"),
+    locations = cells_body(rows = Ano == "2019" & Pais == "Suécia")
+  ) |>
+  ## Destacar maior desigualdade (USA 1960) em vermelho claro
+  tab_style(
+    style = cell_fill(color = "#fde8e8"),
+    locations = cells_body(rows = Ano == "1960" & Pais == "EUA")
+  )
 
 ## ============================================================
 ## PARTE 4 — Entropia de Keyfitz como elasticidade

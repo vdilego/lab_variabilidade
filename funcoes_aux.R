@@ -232,17 +232,31 @@ theil_lt <- function(lt, age_min = 0) {
 #   Demographic Research 41, 83-102.
 #   Repositório: github.com/jmaburto/The-treshold-age-of-the-lifetable-Entropy
 threshold_age <- function(lt) {
-  H_bar <- keyfitz_H(lt)
-  H_x   <- vapply(seq_len(nrow(lt)-1), function(i) {
-    sum(lt$ex[i:nrow(lt)] * lt$dx[i:nrow(lt)]) / lt$lx[i] / lt$ex[i]
-  }, numeric(1))
-  diff_H <- c(H_x, NA) - H_bar
-  idx    <- which(diff_H[-nrow(lt)] > 0 & diff_H[-1] <= 0)[1]
-  if (is.na(idx)) return(NA_real_)
-  x0 <- lt$age[idx]; d0 <- diff_H[idx]
-  x1 <- lt$age[idx+1]; d1 <- diff_H[idx+1]
-  x0 + (-d0)/(d1-d0) * (x1-x0)
+  n     <- nrow(lt)
+  H_bar <- keyfitz_H(lt)   # e†(0) / e0
+  
+  # Para cada idade x, calcular H(x) = e†(x)/e0(x)  e  H_bar(x) condicional
+  # Condição de Aburto eq. (9): g(x) = 0
+  # onde g(x) = e†(x)/e0(x) + e†_bar(x)/e0(x) - 1 - H_bar
+  # simplificando: g(x) = H(x) + H_bar(x) - 1 - H_bar
+  # com H_bar(x) = e†(x)/e0(x) também... 
+  # 
+  # MAIS SIMPLES: usar a condição equivalente de Zhang & Vaupel (2009)
+  # para a†: H(x) + H_bar(x) = 1
+  # que em termos da tábua de vida é: e(x) = e†_total
+  # i.e., ex[x] == edagger_lt(lt)  ← esta é a condição para a†
+  
+  e_dag <- edagger_lt(lt)
+  
+  # a†: primeira idade onde ex cai abaixo de e†
+  idx <- which(lt$ex <= e_dag)[1]
+  if (is.na(idx) || idx == 1) return(NA_real_)
+  
+  x0 <- lt$age[idx-1]; x1 <- lt$age[idx]
+  e0 <- lt$ex[idx-1];  e1 <- lt$ex[idx]
+  x0 + (e_dag - e0) / (e1 - e0) * (x1 - x0)
 }
+
 ## ── Tabela-resumo de todos os indicadores ────────────────────
 
 # Calcula todos os indicadores para uma tábua de vida

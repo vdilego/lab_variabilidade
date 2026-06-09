@@ -14,7 +14,7 @@
 ## ── 1. Pacotes ───────────────────────────────────────────────
 pkgs <- c("tidyverse","ggplot2","scales","patchwork",
           "HMDHFDplus","splines","DemoDecomp",
-          "remotes","ggrepel","viridis","knitr")
+          "remotes","ggrepel","viridis","knitr", "gt")
 novos <- pkgs[!pkgs %in% installed.packages()[,"Package"]]
 if (length(novos) > 0) install.packages(novos)
 
@@ -23,7 +23,7 @@ if (!requireNamespace("LifeIneq", quietly = TRUE))
 
 library(tidyverse); library(ggplot2); library(patchwork)
 library(scales); library(LifeIneq); library(splines)
-library(HMDHFDplus)
+library(HMDHFDplus); library(gt)
 
 ## ── 2. Tema ggplot e cores ───────────────────────────────────
 theme_demo <- function(base_size = 13) {
