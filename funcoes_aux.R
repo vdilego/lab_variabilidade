@@ -232,14 +232,17 @@ theil_lt <- function(lt, age_min = 0) {
 #   Demographic Research 41, 83-102.
 #   Repositório: github.com/jmaburto/The-treshold-age-of-the-lifetable-Entropy
 threshold_age <- function(lt) {
-  e0  <- lt$ex[1]
-  idx <- which(lt$ex <= e0)[1]
-  if (is.na(idx) || idx == 1) return(NA_real_)
-  x0 <- lt$age[idx-1]; x1 <- lt$age[idx]
-  e0_lo <- lt$ex[idx-1]; e0_hi <- lt$ex[idx]
-  x0 + (e0 - e0_lo) / (e0_hi - e0_lo) * (x1 - x0)
+  H_bar <- keyfitz_H(lt)
+  H_x   <- vapply(seq_len(nrow(lt)-1), function(i) {
+    sum(lt$ex[i:nrow(lt)] * lt$dx[i:nrow(lt)]) / lt$lx[i] / lt$ex[i]
+  }, numeric(1))
+  diff_H <- c(H_x, NA) - H_bar
+  idx    <- which(diff_H[-nrow(lt)] > 0 & diff_H[-1] <= 0)[1]
+  if (is.na(idx)) return(NA_real_)
+  x0 <- lt$age[idx]; d0 <- diff_H[idx]
+  x1 <- lt$age[idx+1]; d1 <- diff_H[idx+1]
+  x0 + (-d0)/(d1-d0) * (x1-x0)
 }
-
 ## ── Tabela-resumo de todos os indicadores ────────────────────
 
 # Calcula todos os indicadores para uma tábua de vida
