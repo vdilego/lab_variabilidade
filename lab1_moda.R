@@ -125,6 +125,134 @@ fig2 <- ggplot(lt_swe2019, aes(age, dx)) +
 ggsave("figs/fig2_moda_metodos.pdf", fig2, width = 11, height = 5)
 print(fig2)
 
+# com todos os paises e anos
+
+pop_lista <- list(
+  SWE_1960 = lt_swe1960,
+  SWE_2019 = lt_swe2019,
+  USA_1960 = lt_usa1960,
+  USA_2019 = lt_usa2019
+)
+
+## ── Cores por ano (viridis) ───────────────────────────────────
+pal_anos <- viridis::viridis(2, begin = 0.15, end = 0.75, option = "D")
+names(pal_anos) <- c("1960", "2019")
+
+## ── d(x) para os 4 anos ──────────────────────────────────────
+dx_painel <- map2_dfr(pop_lista, names(pop_lista), function(lt, nm) {
+  lt |>
+    select(age, dx) |>
+    mutate(
+      Pais  = str_extract(nm, "^[A-Z]+"),
+      Ano   = str_extract(nm, "[0-9]+"),
+      e0    = round(lt$ex[1], 1),
+      label = recode(str_extract(nm, "^[A-Z]+"),
+                     SWE = "Suécia", USA = "EUA")
+    )
+})
+
+## ── Modos para os 4 anos ─────────────────────────────────────
+modos_painel <- map2_dfr(pop_lista, names(pop_lista), function(lt, nm) {
+  tibble(
+    Pais     = str_extract(nm, "^[A-Z]+"),
+    Ano      = str_extract(nm, "[0-9]+"),
+    e0       = round(lt$ex[1], 1),
+    Discreto = mode_discrete(lt, 40),
+    Spline   = mode_spline(lt,   40),
+    Gompertz = mode_gompertz(lt),
+    Kernel   = mode_kernel(lt, bw = 5, 40),
+    FxMax    = mode_fx_max(lt,  40)
+  )
+}) |>
+  pivot_longer(
+    cols      = c(Discreto, Spline, Gompertz, Kernel, FxMax),
+    names_to  = "Metodo",
+    values_to = "Moda"
+  ) |>
+  mutate(
+    Metodo = factor(Metodo,
+                    levels = c("Discreto","Spline","Gompertz","Kernel","FxMax"),
+                    labels = c("Discreto","Spline cúbico","Gompertz",
+                               "Kernel (bw=5)","Máx f(x)")),
+    label  = recode(Pais, SWE = "Suécia", USA = "EUA")
+  ) |>
+  filter(!is.na(Moda))
+
+## ── Tipo de linha por método ──────────────────────────────────
+lty5 <- c("Discreto"      = "solid",
+          "Spline cúbico" = "dashed",
+          "Gompertz"      = "dotdash",
+          "Kernel (bw=5)" = "dotted",
+          "Máx f(x)"      = "longdash")
+
+## ── Posição y dos labels: 1960 = bloco superior, 2019 = bloco inferior
+modos_texto <- modos_painel |>
+  group_by(label) |>
+  mutate(
+    ymax  = max(dx_painel$dx[dx_painel$label == first(label)]),
+    base  = if_else(Ano == "2019", ymax * 0.97, ymax * 0.50),
+    y_pos = base - (as.integer(Metodo) - 1) * ymax * 0.088
+  ) |>
+  ungroup()
+
+## ── Gráfico ───────────────────────────────────────────────────
+fig2a <- ggplot() +
+  geom_area(
+    data  = dx_painel,
+    aes(age, dx, fill = Ano, group = Ano),
+    alpha = 0.15, position = "identity"
+  ) +
+  geom_line(
+    data      = dx_painel,
+    aes(age, dx, color = Ano, group = Ano),
+    linewidth = 1.3
+  ) +
+  geom_vline(
+    data = modos_painel,
+    aes(xintercept = Moda, color = Ano, linetype = Metodo),
+    linewidth = 0.75, alpha = 0.9
+  ) +
+  geom_text(
+    data = modos_texto,
+    aes(x     = Moda + 1.0,
+        y     = y_pos,
+        label = sprintf("%s: %.1f", Metodo, Moda),
+        color = Ano),
+    hjust = 0, size = 2.55, fontface = "bold", lineheight = 0.82
+  ) +
+  scale_color_manual(values = pal_anos, name = "Ano") +
+  scale_fill_manual(values = pal_anos, guide = "none") +
+  scale_linetype_manual(values = lty5, name = "Método") +
+  scale_x_continuous(breaks = seq(0, 110, 20)) +
+  facet_wrap(~ label, nrow = 1, scales = "free_y") +
+  labs(
+    title    = "Distribuição de mortes d(x) e estimativas da moda — 1960 e 2019",
+    subtitle = "Anos sobrepostos por país · linhas verticais = 5 métodos de estimação de M",
+    x        = "Idade", y = "d(x)",
+    caption  = paste0(
+      "Cor = ano; tipo de linha = método. Recorte ≥ 40 anos (Canudas-Romo, 2010).\n",
+      "Referências: Kannisto (2001); Horiuchi et al. (2013); Missov et al. (2015). ",
+      "Dados: HMD, mulheres.")
+  ) +
+  theme(
+    legend.position  = "bottom",
+    legend.box       = "vertical",
+    legend.key.width = unit(1.5, "cm"),
+    strip.text       = element_text(face = "bold", size = 12),
+    panel.spacing    = unit(1.2, "lines")
+  ) +
+  guides(
+    color    = guide_legend(order = 1, nrow = 1,
+                            override.aes = list(linewidth = 1.5)),
+    linetype = guide_legend(order = 2, nrow = 1,
+                            override.aes = list(color     = "gray30",
+                                                linewidth = 0.8))
+  )
+
+ggsave("figs/fig2a_moda_painel.pdf", fig2a, width = 14, height = 6.5)
+print(fig2a)
+
+
 ## ── PARTE 4: tabela comparando 5 métodos (recorte fixo = 40) ──
 ## Esta é a comparação pedagogicamente útil: qual método
 ## chega mais perto do pico real?
@@ -537,7 +665,7 @@ tab_long4 <- tab_localizacao |>
 ## viridis: amarelo (Moda) → verde (Mediana) → roxo (e0)
 ## Invertemos para que e0 fique no tom mais escuro/sóbrio
 pal4 <- viridis::viridis(3, begin = 0.15, end = 0.85,
-                         direction = -1, option = "D")
+                          direction = -1, option = "D")
 names(pal4) <- c("Moda M", "Mediana", "e₀ (média)")
 
 ## ── Segmento conectando os três pontos (faixa horizontal) ────
@@ -602,7 +730,7 @@ fig4 <- ggplot() +
   labs(
     title    = expression(
       bold("Medidas de localização: ") *
-        e[0] * ", mediana e moda (" * M * ")"),
+      e[0] * ", mediana e moda (" * M * ")"),
     subtitle = "Suécia e EUA, mulheres — 1960 e 2019",
     x        = "Idade (anos)",
     y        = NULL,
