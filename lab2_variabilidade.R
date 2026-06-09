@@ -585,3 +585,4 @@ tab_ineq |>
   print()
 
 cat("\n✓ Lab 2 concluído. Todas as figuras salvas em figs/\n")
+
