@@ -7,15 +7,15 @@
 ## ── Tábua de vida ────────────────────────────────────────────
 
 #' Constrói tábua de vida completa a partir de mx
-#'
-#' @param mx  vetor de taxas centrais de mortalidade
-#' @param ages vetor de idades (default 0:110)
-#' @param sex  "f" (feminino) ou "m" (masculino) — afeta a(0)
-#' @return data.frame com colunas age, mx, ax, qx, lx, dx, Lx, Tx, ex
-#'
-#' Referência: Preston, Heuveline & Guillot (2001),
-#'   "Demography: Measuring and Modeling Population Processes",
-#'    cap. 3. Blackwell.
+#
+# @param mx  vetor de taxas centrais de mortalidade
+# @param ages vetor de idades (default 0:110)
+# @param sex  "f" (feminino) ou "m" (masculino) — afeta a(0)
+# @return data.frame com colunas age, mx, ax, qx, lx, dx, Lx, Tx, ex
+#
+# Referência: Preston, Heuveline & Guillot (2001),
+#   "Demography: Measuring and Modeling Population Processes",
+#    cap. 3. Blackwell.
 build_lt <- function(mx, ages = 0:110, sex = "f") {
   n  <- length(ages)
   ax <- rep(0.5, n)
@@ -80,13 +80,13 @@ mode_spline <- function(lt, age_min = 40) {
   ages_fine[which.max(dx_fine)]
 }
 
-#' Método 3: ajuste Gompertz em mu(x)
-#'
-#' mu(x) = alpha * exp(beta * x)
-#' Moda analítica: M = -ln(alpha/beta) / beta
-#'
-#' Referência: Missov et al. (2015), Demographic Research 32, 701-732.
-#'   Canudas-Romo (2010): recorte em 40+ para evitar bimodalidade.
+# Método 3: ajuste Gompertz em mu(x)
+#
+# mu(x) = alpha * exp(beta * x)
+# Moda analítica: M = -ln(alpha/beta) / beta
+#
+# Referência: Missov et al. (2015), Demographic Research 32, 701-732.
+#   Canudas-Romo (2010): recorte em 40+ para evitar bimodalidade.
 mode_gompertz <- function(lt, age_range = 40:90) {
   sub <- subset(lt, age %in% age_range & mx > 0)
   if (nrow(sub) < 5) return(NA_real_)
@@ -97,22 +97,23 @@ mode_gompertz <- function(lt, age_range = 40:90) {
   -log(alpha / beta) / beta
 }
 
-#' Método 4: estimador de kernel gaussiano sobre dx
-#'
-#' Referência: Horiuchi et al. (2013), Population Studies 67(3), 291-305.
+# Método 4: estimador de kernel gaussiano sobre dx
+#
+# Referência: Horiuchi et al. (2013), Population Studies 67(3), 291-305.
 mode_kernel <- function(lt, bw = 5, age_min = 40) {
-  sub   <- subset(lt, age >= age_min & dx > 0)
-  freq  <- round(sub$dx * 1e5)
+  sub    <- subset(lt, age >= age_min & dx > 0)
+  freq   <- round(sub$dx / sum(sub$dx) * 1e5)   # <- linha corrigida
   idades <- rep(sub$age, freq)
   if (length(idades) < 10) return(NA_real_)
-  dens <- density(idades, bw = bw, from = age_min, to = 115)
+  dens <- density(idades, bw = bw,
+                  from = age_min, to = max(sub$age) + 1,
+                  kernel = "gaussian")            # <- explícito
   dens$x[which.max(dens$y)]
 }
-
-#' Método 5: maximização direta de f(x) via spline em lx
-#'
-#' f(x) = -l'(x). Maximizamos diretamente a derivada negativa de lx.
-#' Referência: Wilmoth & Horiuchi (1999), Demography 36(4), eq. (2).
+# Método 5: maximização direta de d(x) via spline em lx
+#
+# d(x) = -l'(x). Maximizamos diretamente a derivada negativa de lx.
+# Referência: Wilmoth & Horiuchi (1999), Demography 36(4), eq. (2).
 mode_fx_max <- function(lt, age_min = 40) {
   sub  <- subset(lt, age >= age_min)
   spl  <- splinefun(sub$age, sub$lx, method = "monoH.FC")
@@ -124,10 +125,10 @@ mode_fx_max <- function(lt, age_min = 40) {
 
 ## ── Amplitude interquartil (IQR) ─────────────────────────────
 
-#' IQR da distribuição de idades à morte
-#'
-#' Referência: Wilmoth & Horiuchi (1999), Demography 36(4),
-#'   Appendix A, eq. (A7).
+# IQR da distribuição de idades à morte
+#
+# Referência: Wilmoth & Horiuchi (1999), Demography 36(4),
+#   Appendix A, eq. (A7).
 iqr_lt <- function(lt) {
   find_q <- function(p) {
     idx <- which(lt$lx <= p)[1]
@@ -141,14 +142,14 @@ iqr_lt <- function(lt) {
 
 ## ── Desvio-padrão (total e condicional) ──────────────────────
 
-#' Desvio-padrão da distribuição de idades à morte
-#'
-#' @param lt  tábua de vida
-#' @param age_min  recorte inferior (0 = total; 30 = sigma(30+))
-#'
-#' Referência total: Wilmoth & Horiuchi (1999), eq. (A8).
-#' Referência condicional (sigma(30+)): Myers & Manton (1984);
-#'   Wilmoth & Horiuchi (1999), p. 481.
+# Desvio-padrão da distribuição de idades à morte
+#
+# @param lt  tábua de vida
+# @param age_min  recorte inferior (0 = total; 30 = sigma(30+))
+#
+# Referência total: Wilmoth & Horiuchi (1999), eq. (A8).
+# Referência condicional (sigma(30+)): Myers & Manton (1984);
+#   Wilmoth & Horiuchi (1999), p. 481.
 sd_lt <- function(lt, age_min = 0) {
   sub  <- subset(lt, age >= age_min)
   e_c  <- sub$ex[1]
@@ -161,7 +162,7 @@ sd_lt <- function(lt, age_min = 0) {
 
 #' e-dagger: anos de vida esperada perdidos em média
 #'
-#' e† = integral[ e(x) * f(x) dx ]
+# e† = integral[ e(x) * f(x) dx ]
 #'
 #' Referência: Vaupel, Zhang & van Raalte (2011),
 #'   BMJ Open 1(1), e000128, eq. (3).
@@ -172,28 +173,28 @@ edagger_lt <- function(lt) {
 
 ## ── Entropia de Keyfitz ───────────────────────────────────────
 
-#' Entropia de Keyfitz H = e† / e0
-#'
-#' Interpretação: elasticidade de e0 a uma redução proporcional
-#' uniforme em mu(x). Se mu_delta(x) = (1-delta)*mu(x), então:
-#'   delta(e0)/e0 ≈ H * delta
-#'
-#' Referência: Keyfitz (1977), Demography 14(4), 411-418.
-#'   Leser (1955), Population Studies 9(1), 67-71.
-#'   Aburto et al. (2019), Demographic Research 41, 83-102.
+# Entropia de Keyfitz H = e† / e0
+#
+# Interpretação: elasticidade de e0 a uma redução proporcional
+# uniforme em mu(x). Se mu_delta(x) = (1-delta)*mu(x), então:
+#   delta(e0)/e0 ≈ H * delta
+#
+# Referência: Keyfitz (1977), Demography 14(4), 411-418.
+#   Leser (1955), Population Studies 9(1), 67-71.
+#   Aburto et al. (2019), Demographic Research 41, 83-102.
 keyfitz_H <- function(lt) {
   edagger_lt(lt) / lt$ex[1]
 }
 
 ## ── Gini da tábua de vida ────────────────────────────────────
 
-#' Coeficiente de Gini da tábua de vida
-#'
-#' G = 1 - (1/e0) * integral[ l(x)^2 ] dx
-#'
-#' Referência: Hanada (1983), J. Japan Statistical Society 13(2).
-#'   Shkolnikov, Andreev & Begun (2003), Demographic Research 8(11).
-#'   Wilmoth & Horiuchi (1999), eq. (A10).
+# Coeficiente de Gini da tábua de vida
+#
+# G = 1 - (1/e0) * integral[ l(x)^2 ] dx
+#
+# Referência: Hanada (1983), J. Japan Statistical Society 13(2).
+#   Shkolnikov, Andreev & Begun (2003), Demographic Research 8(11).
+#   Wilmoth & Horiuchi (1999), eq. (A10).
 gini_lt <- function(lt) {
   e0  <- lt$ex[1]
   lx  <- lt$lx
@@ -204,13 +205,13 @@ gini_lt <- function(lt) {
 
 ## ── Índice de Theil ───────────────────────────────────────────
 
-#' Índice de Theil da distribuição de idades à morte
-#'
-#' T = E[ (x/e0) * log(x/e0) ]
-#'
-#' Referência: Permanyer & Scholl (2019), PLoS ONE.
-#'   Permanyer, Spijker, Blanes & Renteria (2018), Demography.
-#'   Permanyer, Sasson & Villavicencio (2023), JRSSA 186(2).
+# Índice de Theil da distribuição de idades à morte
+#
+# T = E[ (x/e0) * log(x/e0) ]
+#
+# Referência: Permanyer & Scholl (2019), PLoS ONE.
+#   Permanyer, Spijker, Blanes & Renteria (2018), Demography.
+#   Permanyer, Sasson & Villavicencio (2023), JRSSA 186(2).
 theil_lt <- function(lt, age_min = 0) {
   sub  <- subset(lt, age >= age_min)
   e0   <- lt$ex[1]  # usa e0 global como referência
@@ -222,14 +223,14 @@ theil_lt <- function(lt, age_min = 0) {
 
 ## ── Threshold age a* ─────────────────────────────────────────
 
-#' Threshold age: a* tal que e(a*) = e0
-#'
-#' Abaixo de a*: redução de mu(x) aumenta e†
-#' Acima de a*:  redução de mu(x) diminui e†
-#'
-#' Referência: Aburto, Alvarez, Villavicencio & Vaupel (2019),
-#'   Demographic Research 41, 83-102.
-#'   Repositório: github.com/jmaburto/The-treshold-age-of-the-lifetable-Entropy
+# Threshold age: a* tal que e(a*) = e0
+#
+# Abaixo de a*: redução de mu(x) aumenta e†
+# Acima de a*:  redução de mu(x) diminui e†
+#
+# Referência: Aburto, Alvarez, Villavicencio & Vaupel (2019),
+#   Demographic Research 41, 83-102.
+#   Repositório: github.com/jmaburto/The-treshold-age-of-the-lifetable-Entropy
 threshold_age <- function(lt) {
   e0  <- lt$ex[1]
   idx <- which(lt$ex <= e0)[1]
@@ -241,7 +242,7 @@ threshold_age <- function(lt) {
 
 ## ── Tabela-resumo de todos os indicadores ────────────────────
 
-#' Calcula todos os indicadores para uma tábua de vida
+# Calcula todos os indicadores para uma tábua de vida
 resumo_lt <- function(lt, nome = "Pop") {
   tibble(
     Populacao  = nome,
@@ -262,4 +263,4 @@ resumo_lt <- function(lt, nome = "Pop") {
   )
 }
 
-cat("✓ Funções auxiliares carregadas.\n")
+

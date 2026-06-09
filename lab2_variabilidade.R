@@ -1,6 +1,6 @@
 ## ============================================================
 ##  lab2_variabilidade.R
-##  SESSÃO 2 (1h30) — Medidas de variabilidade / disparidade
+##  SESSÃO 2 — Medidas de variabilidade / disparidade
 ##  e-dagger, entropia, Gini, Theil, IQR, threshold age
 ##  Usando o pacote LifeIneq (van Raalte, Riffe et al.)
 ## ============================================================

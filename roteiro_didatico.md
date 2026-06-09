@@ -1,6 +1,6 @@
 # Roteiro Didático — Laboratório de Variabilidade das Idades à Morte
 
-**Disciplina**: Doutorado em Demografia  
+**Disciplina**: Indicadores Avançados de Mortalidade 
 **Duração**: 2 sessões × 1h30  
 **Plataforma**: Posit Cloud  
 
@@ -87,7 +87,7 @@ apenas para idades abaixo de $a^*$ em um país com mortalidade similar
 
 ---
 
-## Referências para os alunos
+## Referências
 
 ### Leitura obrigatória (antes do lab)
 - Wilmoth & Horiuchi (1999). *Demography* 36(4): 475–495.
