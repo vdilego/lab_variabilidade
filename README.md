@@ -1,6 +1,6 @@
 # Laboratório: Variabilidade das Idades à Morte em Demografia
 
-**Disciplina**: Doutorado em Demografia  
+**Disciplina**: Indicadores Avançados de Mortalidade
 **Repositório**: [github.com/vdilego/lab_variabilidade](https://github.com/vdilego)  
 **Plataforma**: [Posit Cloud](https://posit.cloud)
 
@@ -41,8 +41,6 @@ Os scripts usam dados do **Human Mortality Database (HMD)**.
 Registro gratuito em [mortality.org](https://www.mortality.org).  
 Credenciais são pedidas interativamente — nunca as inclua no código.
 
-Para rodar sem login, o script `R/00_setup.R` oferece dados embutidos
-(taxas de mortalidade femininas da Suécia e EUA, anos selecionados).
 
 ---
 
